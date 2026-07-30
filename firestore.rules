@@ -1,0 +1,82 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Products — public read for shop/browsing
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Orders — create with field validation, public read (confirmation page),
+    //          update only status field
+    match /orders/{orderId} {
+      allow create: if request.resource.data.customerDetails is map
+                    && request.resource.data.customerDetails.name is string
+                    && request.resource.data.customerDetails.email is string
+                    && request.resource.data.items is list
+                    && request.resource.data.items.size() > 0
+                    && request.resource.data.totalAmount is number;
+      allow read: if true;
+      allow update: if request.resource.data.keys().hasOnly(['paymentStatus']);
+      allow delete: if false;
+    }
+
+    // Users — no direct client access (fetch via API route)
+    match /users/{userId} {
+      allow read, write: if false;
+    }
+
+    // Coupons — read for checkout validation, no direct write
+    match /coupons/{couponId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Reviews — public submit + read
+    match /reviews/{reviewId} {
+      allow create: if request.resource.data.productId is string
+                    && request.resource.data.name is string
+                    && request.resource.data.rating is number
+                    && request.resource.data.rating >= 1
+                    && request.resource.data.rating <= 5;
+      allow read: if true;
+      allow update, delete: if false;
+    }
+
+    // Categories — public read, admin writes via API
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Site Content — public read for homepage/display, admin writes via API
+    match /siteContent/{section} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Carts — save/read for abandoned cart recovery
+    match /carts/{email} {
+      allow read, write: if true;
+    }
+
+    // Subscribers — create with email validation
+    match /subscribers/{subId} {
+      allow create: if request.resource.data.email is string;
+      allow read: if false;
+      allow write: if false;
+    }
+
+    // OTPs — no direct client access
+    match /otps/{otpId} {
+      allow read, write: if false;
+    }
+
+    // Catch-all: deny everything else
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
