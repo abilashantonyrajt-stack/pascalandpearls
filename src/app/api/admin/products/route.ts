@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/firebase";
 import { collection, addDoc, doc, updateDoc, deleteDoc, getDoc, Timestamp } from "firebase/firestore";
+import { verifyAdminRequest } from "@/lib/admin-check";
 
 export async function POST(req: Request) {
   try {
+    const { authorized } = verifyAdminRequest(req);
+    if (!authorized) return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     const body = await req.json();
     const { name, price, description, images, category, stock, featured, material, variants } = body;
 
@@ -32,6 +35,8 @@ export async function POST(req: Request) {
 
 export async function PATCH(req: Request) {
   try {
+    const { authorized } = verifyAdminRequest(req);
+    if (!authorized) return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     const body = await req.json();
     const { id, ...fields } = body;
 
@@ -65,6 +70,8 @@ export async function PATCH(req: Request) {
 
 export async function DELETE(req: Request) {
   try {
+    const { authorized } = verifyAdminRequest(req);
+    if (!authorized) return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
 

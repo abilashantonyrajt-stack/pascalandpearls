@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/firebase";
 import { collection, addDoc, getDocs, query, where, Timestamp } from "firebase/firestore";
+import { verifyAdminRequest } from "@/lib/admin-check";
 
 export async function POST(req: Request) {
   try {
+    const { authorized } = verifyAdminRequest(req);
+    if (!authorized) return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     const { code, discountPercent, expiresAt } = await req.json();
 
     if (!code || discountPercent == null) {

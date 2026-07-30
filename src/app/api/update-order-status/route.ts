@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/firebase";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { verifyAdminRequest } from "@/lib/admin-check";
 import nodemailer from "nodemailer";
 
 const transporter = nodemailer.createTransport({
@@ -13,6 +14,8 @@ const transporter = nodemailer.createTransport({
 
 export async function PATCH(req: Request) {
   try {
+    const { authorized } = verifyAdminRequest(req);
+    if (!authorized) return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     const { orderId, paymentStatus, fulfillmentStatus, trackingNumber } = await req.json();
 
     if (!orderId || (!paymentStatus && !fulfillmentStatus && trackingNumber === undefined)) {

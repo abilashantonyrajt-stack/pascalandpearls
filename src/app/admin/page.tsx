@@ -8,6 +8,14 @@ import type { Product } from "@/lib/products";
 import type { Order } from "@/lib/orders";
 import { LoaderCircle, LayoutDashboard, ShoppingBag, Package, Users, Eye, Ticket, Check, Plus, Edit2, Trash2, Search, X, ChevronLeft, ChevronRight, FileText, MessageSquare, CheckCircle } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
+import { useAuth } from "@/context/AuthContext";
+import Link from "next/link";
+
+const ADMIN_EMAIL = "antonyabilash51@gmail.com";
+
+function adminHeaders(): Record<string, string> {
+  return { "Content-Type": "application/json", "x-admin-email": ADMIN_EMAIL };
+}
 
 interface UserDoc {
   id: string;
@@ -29,20 +37,37 @@ const TABS: { key: Tab; label: string; icon: any }[] = [
 ];
 
 export default function AdminPage() {
-  const [password, setPassword] = useState("");
-  const [authed, setAuthed] = useState(false);
+  const { user, isLoggedIn } = useAuth();
+  const [isAdmin, setIsAdmin] = useState(false);
 
-  if (!authed) {
+  useEffect(() => {
+    if (isLoggedIn && user) {
+      setIsAdmin(user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase());
+    }
+  }, [user, isLoggedIn]);
+
+  if (!isLoggedIn) {
     return (
       <div className="bg-ivory min-h-screen flex items-center justify-center px-4">
-        <div className="glass-strong p-8 w-full max-w-xs">
-          <h1 className="text-sm tracking-widest uppercase text-charcoal mb-4 text-center">Admin</h1>
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Enter password" className="w-full glass-input px-4 py-3 text-sm text-charcoal mb-4" onKeyDown={(e) => e.key === "Enter" && password === "admin123" && setAuthed(true)} />
-          <button onClick={() => password === "admin123" && setAuthed(true)} className="w-full text-xs tracking-widest uppercase bg-charcoal text-ivory py-3 hover:bg-charcoal-deep transition-colors">Enter</button>
-          {password && password !== "admin123" && <p className="text-xs text-red-500 mt-2 text-center">Wrong password</p>}
+        <div className="glass-strong p-8 w-full max-w-sm text-center">
+          <h1 className="text-sm tracking-widest uppercase text-charcoal mb-4">Admin Access</h1>
+          <p className="text-sm text-mink mb-6">You must be signed in to access the admin dashboard.</p>
+          <Link href="/auth" className="inline-block text-xs tracking-widest uppercase bg-charcoal text-ivory px-6 py-3 hover:bg-charcoal-deep transition-colors">Sign In</Link>
         </div>
-    </div>
-  );
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="bg-ivory min-h-screen flex items-center justify-center px-4">
+        <div className="glass-strong p-8 w-full max-w-sm text-center">
+          <h1 className="text-sm tracking-widest uppercase text-charcoal mb-4">Access Denied</h1>
+          <p className="text-sm text-mink mb-6">You don't have permission to access the admin dashboard.</p>
+          <Link href="/" className="inline-block text-xs tracking-widest uppercase bg-charcoal text-ivory px-6 py-3 hover:bg-charcoal-deep transition-colors">Go Home</Link>
+        </div>
+      </div>
+    );
   }
 
   return <AdminDashboard />;
@@ -75,7 +100,7 @@ function AdminDashboard() {
       snap.docs.forEach((d) => { content[d.id] = d.data(); });
       setSiteContent(content);
     });
-    (async () => { try { const r = await fetch("/api/admin/users"); if (r.ok) setUsers(await r.json()); } catch {} })();
+    (async () => { try { const r = await fetch("/api/admin/users", { headers: adminHeaders() }); if (r.ok) setUsers(await r.json()); } catch {} })();
     setLoading(false);
     return () => { unsubOrders(); unsubProducts(); unsubContent(); };
   }, []);
@@ -215,7 +240,7 @@ function OrdersTab({ orders, onOrdersChange }: { orders: Order[]; onOrdersChange
     try {
       await fetch("/api/update-order-status", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: adminHeaders(),
         body: JSON.stringify({ orderId, ...(paymentStatus ? { paymentStatus } : {}), ...(fulfillmentStatus ? { fulfillmentStatus } : {}) }),
       });
       onOrdersChange();
@@ -349,7 +374,7 @@ function OrdersTab({ orders, onOrdersChange }: { orders: Order[]; onOrdersChange
                         if (val && val !== o.trackingNumber) {
                           await fetch("/api/update-order-status", {
                             method: "PATCH",
-                            headers: { "Content-Type": "application/json" },
+                            headers: adminHeaders(),
                             body: JSON.stringify({ orderId: o.id, trackingNumber: val }),
                           });
                           onOrdersChange();
@@ -468,7 +493,7 @@ function ProductsTab({ products, onProductsChange }: { products: Product[]; onPr
     try {
       const res = await fetch("/api/admin/products", {
         method: editing ? "PATCH" : "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: adminHeaders(),
         body: JSON.stringify(payload),
       });
       if (res.ok) {
@@ -482,7 +507,7 @@ function ProductsTab({ products, onProductsChange }: { products: Product[]; onPr
   async function handleDelete(productId: string) {
     if (!confirm("Are you sure you want to delete this product?")) return;
     try {
-      const res = await fetch(`/api/admin/products?id=${productId}`, { method: "DELETE" });
+      const res = await fetch(`/api/admin/products?id=${productId}`, { method: "DELETE", headers: adminHeaders() });
       if (res.ok) onProductsChange();
     } catch {}
   }
@@ -734,7 +759,7 @@ function ContentTab({ siteContent, onContentChange }: { siteContent: SiteContent
     try {
       const res = await fetch("/api/admin/content", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: adminHeaders(),
         body: JSON.stringify({ key, data }),
       });
       if (res.ok) onContentChange();
