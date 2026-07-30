@@ -7,6 +7,7 @@ import { WishlistProvider } from "@/context/WishlistContext";
 import { SiteContentProvider } from "@/context/SiteContentContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { LanguageProvider } from "@/i18n/LanguageProvider";
+import { CurrencyProvider } from "@/context/CurrencyContext";
 import ClientLayout from "@/components/ClientLayout";
 import CookieConsent from "@/components/CookieConsent";
 
@@ -73,10 +74,12 @@ export default function RootLayout({
             <AuthProvider>
               <CartProvider>
                 <WishlistProvider>
-                  <SiteContentProvider>
+                      <CurrencyProvider>
+                      <SiteContentProvider>
                     <ClientLayout>{children}</ClientLayout>
                     <CookieConsent />
                   </SiteContentProvider>
+                  </CurrencyProvider>
                 </WishlistProvider>
               </CartProvider>
             </AuthProvider>

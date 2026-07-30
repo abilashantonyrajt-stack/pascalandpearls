@@ -16,6 +16,8 @@ export default async function sitemap() {
     { url: `${BASE_URL}/terms`, lastModified: new Date(), changeFrequency: "yearly" as const, priority: 0.3 },
     { url: `${BASE_URL}/track-order`, lastModified: new Date(), changeFrequency: "monthly" as const, priority: 0.4 },
     { url: `${BASE_URL}/referral`, lastModified: new Date(), changeFrequency: "monthly" as const, priority: 0.4 },
+    { url: `${BASE_URL}/gift-cards`, lastModified: new Date(), changeFrequency: "monthly" as const, priority: 0.5 },
+    { url: `${BASE_URL}/bundles`, lastModified: new Date(), changeFrequency: "weekly" as const, priority: 0.7 },
   ];
 
   try {

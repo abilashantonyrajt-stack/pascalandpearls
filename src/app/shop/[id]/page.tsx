@@ -9,10 +9,14 @@ import { getProductsByCategory } from "@/lib/products";
 import type { Product } from "@/lib/products";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
+import { useCurrency } from "@/context/CurrencyContext";
 import { formatPrice } from "@/lib/utils";
 import ProductCard from "@/components/ProductCard";
 import SizeGuide from "@/components/SizeGuide";
+import SizeQuiz from "@/components/SizeQuiz";
+import PincodeChecker from "@/components/PincodeChecker";
 import BackInStockButton from "@/components/BackInStockButton";
+import PriceAlertButton from "@/components/PriceAlertButton";
 import { db } from "@/lib/firebase";
 import { doc, onSnapshot } from "firebase/firestore";
 
@@ -26,9 +30,11 @@ export default function ProductDetailPage() {
   const [imgErrors, setImgErrors] = useState<Record<number, boolean>>({});
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
+  const [sizeQuizOpen, setSizeQuizOpen] = useState(false);
   const [related, setRelated] = useState<Product[]>([]);
   const { addItem } = useCart();
   const { isWishlisted, toggle: toggleWishlist } = useWishlist();
+  const { format } = useCurrency();
 
   useEffect(() => {
     if (!id) return;
@@ -176,7 +182,7 @@ export default function ProductDetailPage() {
               </div>
             </div>
             <p className="text-xl sm:text-2xl text-gold-dark font-medium mb-6">
-              {formatPrice(displayPrice)}
+              {format(displayPrice)}
             </p>
 
             {product.variants && product.variants.length > 0 && (
@@ -196,7 +202,7 @@ export default function ProductDetailPage() {
                     >
                       {v.name}
                       <span className="ml-1 opacity-70">
-                        {priceDiff === 0 ? "Base" : `+${formatPrice(priceDiff)}`}
+                        {priceDiff === 0 ? "Base" : `+${format(priceDiff)}`}
                       </span>
                     </button>
                   );
@@ -219,9 +225,18 @@ export default function ProductDetailPage() {
               </div>
             )}
 
-            <button onClick={() => setSizeGuideOpen(true)} className="flex items-center gap-2 text-xs text-mink hover:text-charcoal transition-colors mb-6">
-              <Ruler size={14} /> Size Guide
-            </button>
+            <div className="flex items-center gap-4 mb-6">
+              <button onClick={() => setSizeGuideOpen(true)} className="flex items-center gap-2 text-xs text-mink hover:text-charcoal transition-colors">
+                <Ruler size={14} /> Size Guide
+              </button>
+              <button onClick={() => setSizeQuizOpen(true)} className="flex items-center gap-2 text-xs text-mink hover:text-charcoal transition-colors">
+                <Ruler size={14} /> Size Quiz
+              </button>
+            </div>
+
+            {product.preOrder && product.preOrderDate && (
+              <p className="text-xs text-orange-500 mb-2">Expected: {new Date(product.preOrderDate).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}</p>
+            )}
 
             {product.stock === 0 && <BackInStockButton productId={product.id} />}
 
@@ -239,8 +254,10 @@ export default function ProductDetailPage() {
               className="w-full flex items-center justify-center gap-3 text-xs tracking-widest uppercase bg-charcoal text-ivory py-4 hover:bg-charcoal-deep transition-colors mb-4"
             >
               <ShoppingBag size={16} />
-              {added ? "Added to Bag" : "Add to Bag"}
+              {added ? (product.preOrder ? "Pre-Ordered!" : "Added to Bag") : (product.preOrder ? "Pre-Order Now" : "Add to Bag")}
             </button>
+
+            {!product.preOrder && product.stock > 0 && <PriceAlertButton productId={product.id} currentPrice={displayPrice} />}
 
             <div className="grid grid-cols-2 gap-4 py-6 border-t border-stone">
               {[
@@ -271,10 +288,12 @@ export default function ProductDetailPage() {
           </div>
         )}
 
+        <PincodeChecker />
         <ReviewSection productId={product.id} />
       </div>
 
       <SizeGuide open={sizeGuideOpen} onClose={() => setSizeGuideOpen(false)} />
+      <SizeQuiz open={sizeQuizOpen} onClose={() => setSizeQuizOpen(false)} />
 
       {lightboxOpen && (
         <div className="fixed inset-0 z-[60] bg-black/90 flex items-center justify-center p-4" onClick={() => setLightboxOpen(false)}>
@@ -293,6 +312,7 @@ function ReviewSection({ productId }: { productId: string }) {
   const [name, setName] = useState("");
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
+  const [image, setImage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
 
@@ -307,9 +327,9 @@ function ReviewSection({ productId }: { productId: string }) {
     if (!name.trim()) return;
     setSubmitting(true);
     try {
-      await fetch("/api/reviews", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ productId, name: name.trim(), rating, comment: comment.trim() }) });
+      await fetch("/api/reviews", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ productId, name: name.trim(), rating, comment: comment.trim(), image: image.trim() }) });
       setDone(true);
-      setName(""); setRating(5); setComment("");
+      setName(""); setRating(5); setComment(""); setImage("");
       const res = await fetch(`/api/reviews?productId=${productId}`);
       setReviews(await res.json());
       setTimeout(() => setDone(false), 2000);
@@ -335,6 +355,9 @@ function ReviewSection({ productId }: { productId: string }) {
                 <span className="text-gold-dark text-xs">{'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}</span>
               </div>
               {r.comment && <p className="text-sm text-mink">{r.comment}</p>}
+              {r.image && (
+                <img src={r.image} alt="Review" className="mt-2 w-20 h-20 object-cover rounded border border-stone" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+              )}
               <p className="text-[10px] text-mink/50 mt-1">{new Date(r.createdAt?.toMillis()).toLocaleDateString("en-IN")}</p>
             </div>
           ))}
@@ -350,6 +373,7 @@ function ReviewSection({ productId }: { productId: string }) {
           </select>
         </div>
         <textarea value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Your review (optional)" rows={2} className="w-full glass-input px-4 py-3 text-sm text-charcoal focus:outline-none resize-none" />
+        <input type="text" value={image} onChange={(e) => setImage(e.target.value)} placeholder="Paste image URL (optional)" className="w-full glass-input px-4 py-3 text-sm text-charcoal focus:outline-none" />
         <button type="submit" disabled={submitting} className="text-xs tracking-widest uppercase bg-charcoal text-ivory px-6 py-3 hover:bg-charcoal-deep transition-colors disabled:opacity-50">
           {submitting ? "Submitting..." : done ? "Submitted!" : "Submit Review"}
         </button>

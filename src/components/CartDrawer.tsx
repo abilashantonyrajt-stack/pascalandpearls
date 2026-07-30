@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { X, Minus, Plus, Trash2 } from "lucide-react";
 import { useCart } from "@/context/CartContext";
-import { formatPrice } from "@/lib/utils";
+import { useCurrency } from "@/context/CurrencyContext";
 
 export default function CartDrawer({
   open,
@@ -14,6 +14,7 @@ export default function CartDrawer({
   onClose: () => void;
 }) {
   const { items, itemCount, subtotal, removeItem, updateQuantity } = useCart();
+  const { format } = useCurrency();
   const drawerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -90,7 +91,7 @@ export default function CartDrawer({
                         {item.name}
                       </h3>
                       <p className="text-sm text-gold-dark mt-1">
-                        {formatPrice(item.price)}
+                        {format(item.price)}
                       </p>
                       <div className="flex items-center gap-3 mt-2">
                         <button
@@ -127,7 +128,7 @@ export default function CartDrawer({
                 <div className="flex justify-between text-sm">
                   <span className="text-mink">Subtotal</span>
                   <span className="text-charcoal font-medium">
-                    {formatPrice(subtotal)}
+                    {format(subtotal)}
                   </span>
                 </div>
                 <p className="text-[11px] text-mink/60 tracking-wider">

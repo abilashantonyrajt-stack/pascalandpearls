@@ -4,12 +4,13 @@ import { useState } from "react";
 import Link from "next/link";
 import { Minus, Plus, Trash2, ArrowLeft, ShoppingBag, ImageOff } from "lucide-react";
 import { useCart } from "@/context/CartContext";
-import { formatPrice } from "@/lib/utils";
+import { useCurrency } from "@/context/CurrencyContext";
 
 const FALLBACK_IMG = "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=600";
 
 export default function CartPage() {
   const { items, subtotal, removeItem, updateQuantity } = useCart();
+  const { format } = useCurrency();
   const [brokenImgs, setBrokenImgs] = useState<Record<string, boolean>>({});
 
   if (items.length === 0) {
@@ -93,7 +94,7 @@ export default function CartPage() {
               <span className="sm:hidden text-[11px] tracking-wider text-mink mr-2">
                 Price:
               </span>
-              <span className="text-sm text-charcoal">{formatPrice(item.price)}</span>
+              <span className="text-sm text-charcoal">{format(item.price)}</span>
             </div>
 
             <div className="col-span-4 sm:col-span-2 flex items-center justify-center gap-2">
@@ -117,7 +118,7 @@ export default function CartPage() {
                 Total:
               </span>
               <span className="text-sm text-charcoal font-medium">
-                {formatPrice(item.price * item.quantity)}
+                {format(item.price * item.quantity)}
               </span>
             </div>
           </div>
@@ -135,7 +136,7 @@ export default function CartPage() {
               Subtotal
             </p>
             <p className="text-2xl text-charcoal font-light">
-              {formatPrice(subtotal)}
+              {format(subtotal)}
             </p>
             <p className="text-[11px] text-mink/60 mt-1">
               Shipping &amp; taxes calculated at checkout

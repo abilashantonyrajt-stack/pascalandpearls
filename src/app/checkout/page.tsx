@@ -3,10 +3,11 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Smartphone, Check, LoaderCircle, ArrowLeft, ImageOff, Wallet } from "lucide-react";
+import { Smartphone, Check, LoaderCircle, ArrowLeft, ImageOff, Wallet, Gift, Ticket } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
-import { formatPrice } from "@/lib/utils";
+import { useCurrency } from "@/context/CurrencyContext";
+import PincodeChecker from "@/components/PincodeChecker";
 
 const FALLBACK_IMG = "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=600";
 
@@ -14,7 +15,9 @@ export default function CheckoutPage() {
   const router = useRouter();
   const { items, subtotal, clearCart } = useCart();
   const { isLoggedIn, user, login } = useAuth();
+  const { format } = useCurrency();
   const [paymentMethod, setPaymentMethod] = useState<"upi" | "cod">("upi");
+  const [isGuest, setIsGuest] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [brokenImgs, setBrokenImgs] = useState<Record<string, boolean>>({});
   const [otpError, setOtpError] = useState("");
@@ -41,11 +44,28 @@ export default function CheckoutPage() {
   const [otpSending, setOtpSending] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
 
+  const [guestEmail, setGuestEmail] = useState("");
+  const [guestPrompt, setGuestPrompt] = useState(false);
+
   useEffect(() => {
     if (resendTimer <= 0) return;
     const id = setInterval(() => setResendTimer((t) => t - 1), 1000);
     return () => clearInterval(id);
   }, [resendTimer]);
+
+  useEffect(() => {
+    if (checkoutStep === "payment" && customer.email) {
+      (async () => {
+        setLoyaltyLoading(true);
+        try {
+          const res = await fetch(`/api/loyalty?email=${encodeURIComponent(customer.email)}`);
+          const data = await res.json();
+          setLoyaltyPoints(data.points ?? 0);
+        } catch {}
+        setLoyaltyLoading(false);
+      })();
+    }
+  }, [checkoutStep, customer.email]);
 
   if (items.length === 0) {
     return (
@@ -63,9 +83,19 @@ export default function CheckoutPage() {
   const [couponError, setCouponError] = useState("");
   const [couponLoading, setCouponLoading] = useState(false);
 
+  const [loyaltyPoints, setLoyaltyPoints] = useState(0);
+  const [loyaltyPointsUsed, setLoyaltyPointsUsed] = useState(0);
+  const [loyaltyLoading, setLoyaltyLoading] = useState(false);
+
+  const [gcCode, setGcCode] = useState("");
+  const [gcDiscount, setGcDiscount] = useState(0);
+  const [gcError, setGcError] = useState("");
+  const [gcLoading, setGcLoading] = useState(false);
+
   const shipping = subtotal >= 5000 ? 0 : 299;
   const discount = Math.round(subtotal * (discountPercent / 100));
-  const total = subtotal + shipping - discount;
+  const loyaltyDiscount = Math.floor(loyaltyPointsUsed / 100) * 50;
+  const total = Math.max(0, subtotal + shipping - discount - loyaltyDiscount - gcDiscount);
 
   async function handleApplyCoupon() {
     if (!couponCode.trim()) return;
@@ -124,6 +154,24 @@ export default function CheckoutPage() {
     }
   }
 
+  async function handleApplyGiftCard() {
+    if (!gcCode.trim()) return;
+    setGcLoading(true);
+    setGcError("");
+    try {
+      const res = await fetch(`/api/gift-cards?code=${encodeURIComponent(gcCode.trim().toUpperCase())}`);
+      const data = await res.json();
+      if (!res.ok) { setGcError(data.error); setGcDiscount(0); return; }
+      if (!data.active) { setGcError("Gift card is inactive"); setGcDiscount(0); return; }
+      const applyAmount = Math.min(data.balance, subtotal + shipping - discount - loyaltyDiscount);
+      setGcDiscount(applyAmount);
+    } catch {
+      setGcError("Failed to validate gift card");
+    } finally {
+      setGcLoading(false);
+    }
+  }
+
   async function handlePlaceOrder() {
     setProcessing(true);
     try {
@@ -141,6 +189,8 @@ export default function CheckoutPage() {
         transactionId: paymentMethod === "upi" ? upiTxnId : undefined,
         notes: orderNotes || undefined,
         discountPercent: discountPercent || undefined,
+        loyaltyPointsUsed: loyaltyPointsUsed || undefined,
+        loyaltyDiscount: loyaltyDiscount || undefined,
         subtotal,
         shipping,
       };
@@ -175,7 +225,19 @@ export default function CheckoutPage() {
             {checkoutStep === "auth" && (
               <div className="glass-strong p-6 text-center">
                 <p className="text-sm text-mink mb-4">Sign in to proceed with checkout</p>
-                <Link href="/auth" className="inline-block text-xs tracking-widest uppercase bg-charcoal text-ivory px-8 py-4 hover:bg-charcoal-deep transition-colors">Sign In</Link>
+                <Link href="/auth" className="inline-block text-xs tracking-widest uppercase bg-charcoal text-ivory px-8 py-4 hover:bg-charcoal-deep transition-colors mb-4">Sign In</Link>
+                <div className="relative my-6">
+                  <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-stone"></div></div>
+                  <div className="relative flex justify-center text-xs"><span className="bg-ivory px-3 text-mink">or</span></div>
+                </div>
+                <button onClick={() => {
+                  setIsGuest(true);
+                  const guestUser = { name: "Guest", email: "", accountType: "guest" };
+                  localStorage.setItem("pnp_user", JSON.stringify(guestUser));
+                  login("Guest", "");
+                  setCustomer((prev) => ({ ...prev, name: "Guest", email: "" }));
+                  setCheckoutStep("details");
+                }} className="inline-block text-xs tracking-widest uppercase border border-stone text-mink px-8 py-4 hover:border-charcoal hover:text-charcoal transition-colors">Continue as Guest</button>
               </div>
             )}
 
@@ -221,6 +283,8 @@ export default function CheckoutPage() {
                   </div>
                 </div>
 
+                <PincodeChecker />
+
                 {checkoutStep === "otp" && (
                   <div className="glass-strong p-6 text-center">
                     <p className="text-xs text-mink mb-2">OTP sent to <span className="text-charcoal font-medium">{customer.email}</span></p>
@@ -240,6 +304,39 @@ export default function CheckoutPage() {
                 {(checkoutStep === "payment") && (
                   <div>
                     <h2 className="text-sm tracking-widest uppercase text-charcoal mb-6">2. Payment Method</h2>
+
+                    {isGuest && (
+                      <div className="glass-strong p-6 mb-6 text-center space-y-3">
+                        <p className="text-sm text-charcoal font-medium">Create an account to track your order</p>
+                        <p className="text-xs text-mink">Enter your email and we'll send you order updates</p>
+                        <div className="flex gap-2">
+                          <input type="email" value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} placeholder="your@email.com" className="flex-1 glass-input px-4 py-3 text-sm text-charcoal focus:outline-none transition-colors" />
+                          <button onClick={async () => {
+                            if (!guestEmail.trim() || !/\S+@\S+\.\S+/.test(guestEmail)) return;
+                            try {
+                              const guestUser = { name: "Guest", email: guestEmail.trim(), accountType: "guest" };
+                              localStorage.setItem("pnp_user", JSON.stringify(guestUser));
+                              setGuestEmail("");
+                            } catch {}
+                          }} disabled={!guestEmail.trim()} className="text-xs tracking-widest uppercase bg-charcoal text-ivory px-4 py-3 hover:bg-charcoal-deep transition-colors disabled:opacity-40">Save</button>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="glass-strong p-4 mb-6">
+                      <h3 className="text-xs tracking-widest uppercase text-charcoal mb-3 flex items-center gap-2"><Ticket size={14} /> Redeem Gift Card</h3>
+                      <div className="flex gap-2">
+                        <input type="text" value={gcCode} onChange={(e) => setGcCode(e.target.value.toUpperCase())} placeholder="GC-XXXXXX" className="flex-1 glass-input px-3 py-2 text-xs text-charcoal placeholder:text-mink/50 focus:outline-none uppercase" />
+                        {gcDiscount > 0 ? (
+                          <button onClick={() => { setGcDiscount(0); setGcCode(""); setGcError(""); }} className="text-xs tracking-widest uppercase bg-mink/20 text-mink px-3 py-2 hover:bg-mink/30 transition-colors">Remove</button>
+                        ) : (
+                          <button onClick={handleApplyGiftCard} disabled={gcLoading || !gcCode.trim()} className="text-xs tracking-widest uppercase bg-charcoal text-ivory px-3 py-2 hover:bg-charcoal-deep transition-colors disabled:opacity-50">{gcLoading ? "..." : "Apply"}</button>
+                        )}
+                      </div>
+                      {gcError && <p className="text-xs text-red-500 mt-1">{gcError}</p>}
+                      {gcDiscount > 0 && <p className="text-xs text-green-600 mt-1">Gift card discount applied: -{format(gcDiscount)}</p>}
+                    </div>
+
                     <div className="grid grid-cols-2 gap-4 mb-6">
                       <button onClick={() => setPaymentMethod("upi")} className={`flex items-center justify-center gap-3 px-4 py-4 border text-sm transition-colors ${paymentMethod === "upi" ? "border-gold bg-gold/5 text-charcoal" : "border-stone text-mink hover:border-charcoal"}`}>
                         <Smartphone size={18} />
@@ -249,6 +346,25 @@ export default function CheckoutPage() {
                         <Wallet size={18} />
                         <span className="text-xs tracking-widest uppercase">Cash on Delivery</span>
                       </button>
+                    </div>
+
+                    <div className="glass-strong p-4 mb-6">
+                      <h3 className="text-xs tracking-widest uppercase text-charcoal mb-3 flex items-center gap-2"><Gift size={14} /> Use Loyalty Points</h3>
+                      {loyaltyLoading ? (
+                        <LoaderCircle size={16} className="animate-spin text-mink" />
+                      ) : (
+                        <>
+                          <p className="text-sm text-mink mb-2">Available: <span className="text-charcoal font-medium">{loyaltyPoints} pts</span></p>
+                          {loyaltyPoints >= 100 ? (
+                            <div className="flex items-center gap-2">
+                              <input type="number" value={loyaltyPointsUsed} onChange={(e) => setLoyaltyPointsUsed(Math.min(Math.max(0, Number(e.target.value)), Math.floor(loyaltyPoints / 100) * 100))} min="0" max={Math.floor(loyaltyPoints / 100) * 100} step="100" className="w-24 glass-input px-3 py-2 text-xs text-charcoal focus:outline-none text-center" placeholder="0" />
+                              <span className="text-xs text-mink">pts = <span className="text-green-600 font-medium">₹{loyaltyDiscount}</span> off</span>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-mink">Earn 100 points to unlock discounts. (1 pt per ₹10 spent)</p>
+                          )}
+                        </>
+                      )}
                     </div>
 
                     {paymentMethod === "upi" && (
@@ -271,7 +387,7 @@ export default function CheckoutPage() {
                             );
                           })()}
                           <p className="text-xs tracking-widest uppercase text-charcoal mb-1">UPI ID: <span className="text-gold-dark">antonyabilash51-2@oksbi</span></p>
-                          <p className="text-lg text-charcoal font-medium">{formatPrice(total)}</p>
+                          <p className="text-lg text-charcoal font-medium">{format(total)}</p>
                         </div>
                         <div>
                           <label className="text-xs tracking-wider text-mink mb-1 block">Transaction ID (after payment)</label>
@@ -284,7 +400,7 @@ export default function CheckoutPage() {
                           </button>
                         )}
                         <button onClick={handlePlaceOrder} disabled={!upiTxnId || !upiConfirmed || processing} className="w-full flex items-center justify-center gap-2 text-xs tracking-widest uppercase bg-charcoal text-ivory py-4 hover:bg-charcoal-deep transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                          {processing ? <><LoaderCircle size={16} className="animate-spin" /> Processing…</> : `Place Order — ${formatPrice(total)}`}
+                          {processing ? <><LoaderCircle size={16} className="animate-spin" /> Processing…</> : `Place Order — ${format(total)}`}
                         </button>
                       </div>
                     )}
@@ -302,7 +418,7 @@ export default function CheckoutPage() {
                           <p>• Easy returns &amp; exchange</p>
                         </div>
                         <button onClick={handlePlaceOrder} disabled={processing} className="w-full flex items-center justify-center gap-2 text-xs tracking-widest uppercase bg-charcoal text-ivory py-4 hover:bg-charcoal-deep transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                          {processing ? <><LoaderCircle size={16} className="animate-spin" /> Processing…</> : `Place Order — ${formatPrice(total)}`}
+                          {processing ? <><LoaderCircle size={16} className="animate-spin" /> Processing…</> : `Place Order — ${format(total)}`}
                         </button>
                       </div>
                     )}
@@ -328,13 +444,13 @@ export default function CheckoutPage() {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-charcoal truncate">{item.name}</p>
                       <p className="text-xs text-mink">Qty: {item.quantity}</p>
-                      <p className="text-sm text-gold-dark">{formatPrice(item.price * item.quantity)}</p>
+                      <p className="text-sm text-gold-dark">{format(item.price * item.quantity)}</p>
                     </div>
                   </div>
                 ))}
               </div>
               <div className="border-t border-stone pt-4 space-y-2 text-sm">
-                <div className="flex justify-between"><span className="text-mink">Subtotal</span><span className="text-charcoal">{formatPrice(subtotal)}</span></div>
+                <div className="flex justify-between"><span className="text-mink">Subtotal</span><span className="text-charcoal">{format(subtotal)}</span></div>
                 <div className="flex gap-2 py-1">
                   <input type="text" value={couponCode} onChange={(e) => setCouponCode(e.target.value.toUpperCase())} placeholder="Coupon code" className="flex-1 glass-input px-3 py-2 text-xs text-charcoal placeholder:text-mink/50 focus:outline-none" />
                   {discountPercent > 0 ? (
@@ -344,10 +460,11 @@ export default function CheckoutPage() {
                   )}
                 </div>
                 {couponError && <p className="text-xs text-red-500">{couponError}</p>}
-                <div className="flex justify-between"><span className="text-mink">Shipping</span><span className="text-charcoal">{shipping === 0 ? "Free" : formatPrice(shipping)}</span></div>
+                <div className="flex justify-between"><span className="text-mink">Shipping</span><span className="text-charcoal">{shipping === 0 ? "Free" : format(shipping)}</span></div>
                 <p className="text-[10px] text-mink/60 italic">Estimated delivery: 3-5 business days</p>
-                {discountPercent > 0 && <div className="flex justify-between"><span className="text-mink">Discount ({discountPercent}%)</span><span className="text-green-600">-{formatPrice(discount)}</span></div>}
-                <div className="flex justify-between border-t border-stone pt-2 font-medium"><span className="text-charcoal">Total</span><span className="text-charcoal">{formatPrice(total)}</span></div>
+                {discountPercent > 0 && <div className="flex justify-between"><span className="text-mink">Discount ({discountPercent}%)</span><span className="text-green-600">-{format(discount)}</span></div>}
+                {loyaltyDiscount > 0 && <div className="flex justify-between"><span className="text-mink">Loyalty Points</span><span className="text-green-600">-{format(loyaltyDiscount)}</span></div>}
+                <div className="flex justify-between border-t border-stone pt-2 font-medium"><span className="text-charcoal">Total</span><span className="text-charcoal">{format(total)}</span></div>
               </div>
               <Link href="/cart" className="inline-flex items-center gap-2 text-xs tracking-widest uppercase text-mink hover:text-charcoal transition-colors mt-4"><ArrowLeft size={14} /> Edit Cart</Link>
             </div>

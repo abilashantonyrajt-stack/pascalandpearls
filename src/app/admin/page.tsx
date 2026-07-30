@@ -6,12 +6,16 @@ import { collection, getDocs, query, orderBy, Timestamp, addDoc, deleteDoc, doc,
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import type { Product } from "@/lib/products";
 import type { Order } from "@/lib/orders";
-import { LoaderCircle, LayoutDashboard, ShoppingBag, Package, Users, Eye, Ticket, Check, Plus, Edit2, Trash2, Search, X, ChevronLeft, ChevronRight, FileText, MessageSquare, CheckCircle, BookOpen } from "lucide-react";
+import { LoaderCircle, LayoutDashboard, ShoppingBag, Package, TrendingUp, Users, Eye, Ticket, Check, Plus, Edit2, Trash2, Search, X, ChevronLeft, ChevronRight, FileText, MessageSquare, CheckCircle, BookOpen, Tag } from "lucide-react";
 import BlogTab from "@/components/admin/BlogTab";
 import BulkImportTab from "@/components/admin/BulkImportTab";
+import AnalyticsTab from "@/components/admin/AnalyticsTab";
+import PushNotify from "@/components/admin/PushNotify";
+import { waLink } from "@/lib/whatsapp";
 import { formatPrice } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 import Link from "next/link";
+import type { Bundle } from "@/lib/bundles";
 
 const ADMIN_EMAIL = "antonyabilash51@gmail.com";
 
@@ -26,7 +30,7 @@ interface UserDoc {
   createdAt: Timestamp;
 }
 
-type Tab = "overview" | "orders" | "products" | "coupons" | "reviews" | "content" | "blog" | "bulk" | "users";
+type Tab = "overview" | "orders" | "products" | "coupons" | "reviews" | "content" | "blog" | "bulk" | "analytics" | "bundles" | "users";
 
 const TABS: { key: Tab; label: string; icon: any }[] = [
   { key: "overview", label: "Overview", icon: LayoutDashboard },
@@ -37,6 +41,8 @@ const TABS: { key: Tab; label: string; icon: any }[] = [
   { key: "content", label: "Content", icon: FileText },
   { key: "blog", label: "Blog", icon: BookOpen },
   { key: "bulk", label: "Bulk Import", icon: FileText },
+  { key: "analytics", label: "Analytics", icon: TrendingUp },
+  { key: "bundles", label: "Bundles", icon: Tag },
   { key: "users", label: "Users", icon: Users },
 ];
 
@@ -156,6 +162,10 @@ function AdminDashboard() {
           <BlogTab />
         ) : tab === "bulk" ? (
           <BulkImportTab />
+        ) : tab === "analytics" ? (
+          <AnalyticsTab />
+        ) : tab === "bundles" ? (
+          <BundlesTab />
         ) : (
           <UsersTab users={users} />
         )}
@@ -189,6 +199,7 @@ function OverviewTab({ orders, totalRevenue, codPending, upiTotal, completedOrde
         <StatCard label="Products" value={productsCount} />
         <StatCard label="Users" value={usersCount} />
       </div>
+      <PushNotify />
       <div>
         <h2 className="text-sm tracking-widest uppercase text-charcoal mb-4">Recent Orders</h2>
         <div className="overflow-x-auto">
@@ -342,6 +353,18 @@ function OrdersTab({ orders, onOrdersChange }: { orders: Order[]; onOrdersChange
                           <p className="text-sm text-charcoal bg-white/30 p-2">{o.notes}</p>
                         </div>
                       )}
+                      {o.customerDetails?.phone && (
+                        <div className="mt-3">
+                          <a
+                            href={waLink(o.customerDetails.phone, `Hi ${o.customerDetails.name}! Your order #${o.id?.slice(0, 8)} has been updated to ${o.fulfillmentStatus || "pending"}. Total: ₹${o.totalAmount}. Thank you for shopping at Pascal & Pearls!`)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 text-xs tracking-widest uppercase bg-[#25D366] text-white px-4 py-2 hover:bg-[#1da851] transition-colors"
+                          >
+                            WhatsApp Customer
+                          </a>
+                        </div>
+                      )}
                     </div>
                     <div>
                       <p className="text-xs tracking-widest uppercase text-mink mb-2">Payment & Transaction</p>
@@ -441,11 +464,11 @@ function ProductsTab({ products, onProductsChange }: { products: Product[]; onPr
   }, []);
 
   const [form, setForm] = useState({
-    name: "", price: "", costPrice: "", description: "", category: "", stock: "10", featured: false, material: "", images: "",
+    name: "", price: "", costPrice: "", description: "", category: "", stock: "10", featured: false, material: "", images: "", preOrder: false, preOrderDate: "",
   });
 
   function resetForm() {
-    setForm({ name: "", price: "", costPrice: "", description: "", category: "", stock: "10", featured: false, material: "", images: "" });
+    setForm({ name: "", price: "", costPrice: "", description: "", category: "", stock: "10", featured: false, material: "", images: "", preOrder: false, preOrderDate: "" });
     setEditing(null);
     setShowForm(false);
   }
@@ -461,6 +484,8 @@ function ProductsTab({ products, onProductsChange }: { products: Product[]; onPr
       featured: p.featured,
       material: p.material || "",
       images: p.images?.join(", ") || "",
+      preOrder: p.preOrder || false,
+      preOrderDate: p.preOrderDate || "",
     });
     setEditing(p);
     setShowForm(true);
@@ -498,6 +523,8 @@ function ProductsTab({ products, onProductsChange }: { products: Product[]; onPr
       stock: Number(form.stock),
       featured: form.featured,
       material: form.material,
+      preOrder: form.preOrder,
+      preOrderDate: form.preOrderDate || undefined,
       images: form.images.split(",").map((s) => s.trim()).filter(Boolean),
     };
     try {
@@ -611,6 +638,18 @@ function ProductsTab({ products, onProductsChange }: { products: Product[]; onPr
                 <span className="text-xs tracking-widest uppercase text-mink">Featured</span>
               </label>
             </div>
+            <div className="flex items-end pb-2">
+              <label className="flex items-center gap-2 text-sm text-charcoal cursor-pointer">
+                <input type="checkbox" checked={form.preOrder} onChange={(e) => setForm({ ...form, preOrder: e.target.checked })} className="w-4 h-4 accent-charcoal" />
+                <span className="text-xs tracking-widest uppercase text-mink">Pre-Order</span>
+              </label>
+            </div>
+            {form.preOrder && (
+              <div>
+                <label className="text-xs tracking-wider text-mink mb-1 block">Pre-Order Date</label>
+                <input type="date" value={form.preOrderDate} onChange={(e) => setForm({ ...form, preOrderDate: e.target.value })} className="w-full glass-input px-4 py-2 text-sm text-charcoal focus:outline-none" />
+              </div>
+            )}
             <div>
               <label className="text-xs tracking-wider text-mink mb-1 block">Material</label>
               <input type="text" value={form.material} onChange={(e) => setForm({ ...form, material: e.target.value })} placeholder="e.g. Gold-plated" className="w-full glass-input px-4 py-2 text-sm text-charcoal focus:outline-none" />
@@ -939,6 +978,91 @@ function UsersTab({ users }: { users: UserDoc[] }) {
                   <td className="py-3 px-2 text-charcoal">{u.name}</td>
                   <td className="py-3 px-2 text-mink">{u.email}</td>
                   <td className="py-3 px-2 text-mink text-xs">{new Date(u.createdAt?.toMillis()).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BundlesTab() {
+  const [bundles, setBundles] = useState<Bundle[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [name, setName] = useState(""); const [slug, setSlug] = useState(""); const [desc, setDesc] = useState(""); const [discount, setDiscount] = useState("");
+  const [products, setProducts] = useState(""); const [image, setImage] = useState(""); const [msg, setMsg] = useState(""); const [saving, setSaving] = useState(false);
+
+  const fetchBundles = async () => {
+    setLoading(true);
+    try {
+      const q = await import("firebase/firestore");
+      const snap = await getDocs(q.collection(db, "bundles"));
+      setBundles(snap.docs.map(d => ({ id: d.id, ...d.data() }) as Bundle));
+    } catch {}
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchBundles(); }, []);
+
+  async function handleCreate(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim() || !slug.trim() || !discount) return;
+    setSaving(true); setMsg("");
+    try {
+      await addDoc(collection(db, "bundles"), {
+        name: name.trim(), slug: slug.trim().toLowerCase().replace(/\s+/g, "-"),
+        description: desc.trim(), products: products.split(",").map(s => s.trim()).filter(Boolean),
+        discountPercent: Number(discount), image: image.trim() || "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=600",
+        active: true,
+      });
+      setMsg("Bundle created!"); setName(""); setSlug(""); setDesc(""); setDiscount(""); setProducts(""); setImage("");
+      fetchBundles();
+    } catch { setMsg("Failed to create"); }
+    setSaving(false);
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm("Delete this bundle?")) return;
+    await deleteDoc(doc(db, "bundles", id));
+    fetchBundles();
+  }
+
+  if (loading) return <div className="flex justify-center py-20"><LoaderCircle size={24} className="animate-spin text-mink" /></div>;
+
+  return (
+    <div>
+      <h2 className="text-sm tracking-widest uppercase text-charcoal mb-4">Bundle Deals ({bundles.length})</h2>
+      <form onSubmit={handleCreate} className="glass-card p-6 space-y-4 max-w-lg mb-8">
+        <h3 className="text-xs tracking-widest uppercase text-charcoal">Create Bundle</h3>
+        <div className="grid grid-cols-2 gap-3">
+          <div><label className="text-[10px] tracking-widest uppercase text-mink mb-1 block">Name *</label><input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full glass-input px-3 py-2 text-sm text-charcoal focus:outline-none" required /></div>
+          <div><label className="text-[10px] tracking-widest uppercase text-mink mb-1 block">Slug *</label><input type="text" value={slug} onChange={(e) => setSlug(e.target.value)} className="w-full glass-input px-3 py-2 text-sm text-charcoal focus:outline-none" required /></div>
+        </div>
+        <div><label className="text-[10px] tracking-widest uppercase text-mink mb-1 block">Description</label><textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={2} className="w-full glass-input px-3 py-2 text-sm text-charcoal focus:outline-none resize-none" /></div>
+        <div className="grid grid-cols-2 gap-3">
+          <div><label className="text-[10px] tracking-widest uppercase text-mink mb-1 block">Discount % *</label><input type="number" value={discount} onChange={(e) => setDiscount(e.target.value)} min="1" max="100" className="w-full glass-input px-3 py-2 text-sm text-charcoal focus:outline-none" required /></div>
+          <div><label className="text-[10px] tracking-widest uppercase text-mink mb-1 block">Product IDs (comma)</label><input type="text" value={products} onChange={(e) => setProducts(e.target.value)} placeholder="id1, id2" className="w-full glass-input px-3 py-2 text-sm text-charcoal focus:outline-none" /></div>
+        </div>
+        <div><label className="text-[10px] tracking-widest uppercase text-mink mb-1 block">Image URL</label><input type="text" value={image} onChange={(e) => setImage(e.target.value)} placeholder="https://..." className="w-full glass-input px-3 py-2 text-sm text-charcoal focus:outline-none" /></div>
+        <button type="submit" disabled={saving} className="text-xs tracking-widest uppercase bg-charcoal text-ivory px-4 py-2 hover:bg-charcoal-deep transition-colors disabled:opacity-50">{saving ? "Creating..." : "Create Bundle"}</button>
+        {msg && <p className={`text-xs ${msg === "Bundle created!" ? "text-green-600" : "text-red-500"}`}>{msg}</p>}
+      </form>
+      {bundles.length === 0 ? (
+        <div className="text-center py-10 text-mink text-sm">No bundles yet.</div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead><tr className="text-xs tracking-widest uppercase text-mink border-b border-stone"><th className="text-left py-3 px-2">Name</th><th className="text-left py-3 px-2">Slug</th><th className="text-left py-3 px-2">Discount</th><th className="text-left py-3 px-2">Products</th><th className="text-left py-3 px-2">Actions</th></tr></thead>
+            <tbody>
+              {bundles.map((b) => (
+                <tr key={b.id} className="border-b border-stone/50 hover:bg-white/20 transition-colors">
+                  <td className="py-3 px-2 text-charcoal font-medium">{b.name}</td>
+                  <td className="py-3 px-2 text-mink text-xs">{b.slug}</td>
+                  <td className="py-3 px-2 text-charcoal">{b.discountPercent}%</td>
+                  <td className="py-3 px-2 text-mink text-xs">{b.products?.length || 0}</td>
+                  <td className="py-3 px-2"><button onClick={() => handleDelete(b.id!)} className="p-1.5 text-mink hover:text-red-500 transition-colors" title="Delete"><Trash2 size={14} /></button></td>
                 </tr>
               ))}
             </tbody>

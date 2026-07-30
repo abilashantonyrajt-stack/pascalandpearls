@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 import { db } from "@/lib/firebase";
-import { doc, getDoc, updateDoc, collection, getDocs, query, where } from "firebase/firestore";
+import { doc, getDoc, updateDoc, increment, setDoc, collection, getDocs, query, where } from "firebase/firestore";
 import { createOrder } from "@/lib/orders";
 import type { Order } from "@/lib/orders";
 
@@ -29,6 +29,8 @@ export async function POST(req: Request) {
       transactionId: body.transactionId,
       notes: body.notes,
       discountPercent: body.discountPercent,
+      loyaltyPointsUsed: body.loyaltyPointsUsed,
+      loyaltyDiscount: body.loyaltyDiscount,
       subtotal: body.subtotal,
       shipping: body.shipping,
     };
@@ -55,6 +57,28 @@ export async function POST(req: Request) {
 
     const orderId = await createOrder(order);
 
+    const email = order.customerDetails.email.toLowerCase().trim();
+
+    if (order.loyaltyPointsUsed && order.loyaltyPointsUsed > 0) {
+      const loyaltyRef = doc(db, "loyalty", email);
+      const loyaltySnap = await getDoc(loyaltyRef);
+      const currentPoints = loyaltySnap.exists() ? loyaltySnap.data().points || 0 : 0;
+      if (currentPoints >= order.loyaltyPointsUsed) {
+        await updateDoc(loyaltyRef, { points: increment(-order.loyaltyPointsUsed) });
+      }
+    }
+
+    const earnedPoints = Math.floor(order.totalAmount / 10);
+    if (earnedPoints > 0) {
+      const loyaltyRef = doc(db, "loyalty", email);
+      const loyaltySnap = await getDoc(loyaltyRef);
+      if (!loyaltySnap.exists()) {
+        await setDoc(loyaltyRef, { points: earnedPoints, lifetimePoints: earnedPoints });
+      } else {
+        await updateDoc(loyaltyRef, { points: increment(earnedPoints), lifetimePoints: increment(earnedPoints) });
+      }
+    }
+
     const itemList = order.items.map((i) => `${i.name} x${i.quantity} — ₹${i.price * i.quantity}`).join("\n");
     const payInfo = order.paymentMethod === "upi" ? `UPI (Txn: ${order.transactionId})` : "Cash on Delivery";
 
@@ -79,14 +103,32 @@ export async function POST(req: Request) {
       </div>`,
     });
 
-    if (order.paymentMethod === "cod") {
-      transporter.sendMail({
-        from: process.env.SMTP_USER,
-        to: process.env.SMTP_USER,
-        subject: `New COD Order — #${orderId.slice(0, 8)}`,
-        text: `New COD order received!\n\nCustomer: ${order.customerDetails.name} (${order.customerDetails.phone}, ${order.customerDetails.email})\nAddress: ${order.customerDetails.address}, ${order.customerDetails.city}, ${order.customerDetails.state} — ${order.customerDetails.pincode}\nTotal: ₹${order.totalAmount}\n${order.notes ? `\nNotes: ${order.notes}` : ""}\n\nItems:\n${itemList}`,
-      });
-    }
+    const waPhone = order.customerDetails.phone?.replace(/\D/g, "") || "";
+    const waMsg = `Hi ${order.customerDetails.name}! Your order #${orderId.slice(0, 8)} has been confirmed. Total: ₹${order.totalAmount}. Thank you for shopping at Pascal & Pearls!`;
+    const waUrl = `https://wa.me/91${waPhone}?text=${encodeURIComponent(waMsg)}`;
+    transporter.sendMail({
+      from: process.env.SMTP_USER,
+      to: process.env.SMTP_USER,
+      subject: `New Order — #${orderId.slice(0, 8)} (${order.paymentMethod === "upi" ? "UPI" : "COD"})`,
+      html: `<div style="font-family:Georgia,serif;max-width:480px;margin:0 auto;padding:32px;background:#faf8f5;border:1px solid #e5ddd3">
+        <h1 style="font-size:18px;letter-spacing:0.2em;color:#3a3a3a;text-align:center;margin:0 0 24px">New Order Received</h1>
+        <div style="background:#fff;border:1px solid #e5ddd3;padding:24px;margin-bottom:12px">
+          <p style="font-size:13px;color:#3a3a3a;margin:0 0 8px"><strong>Order:</strong> #${orderId.slice(0, 8)}</p>
+          <p style="font-size:13px;color:#3a3a3a;margin:0 0 8px"><strong>Customer:</strong> ${order.customerDetails.name}</p>
+          <p style="font-size:13px;color:#3a3a3a;margin:0 0 8px"><strong>Phone:</strong> ${order.customerDetails.phone}</p>
+          <p style="font-size:13px;color:#3a3a3a;margin:0 0 8px"><strong>Email:</strong> ${order.customerDetails.email}</p>
+          <p style="font-size:13px;color:#3a3a3a;margin:0 0 8px"><strong>Payment:</strong> ${payInfo}</p>
+          <p style="font-size:13px;color:#3a3a3a;margin:0 0 8px"><strong>Total:</strong> ₹${order.totalAmount}</p>
+          <p style="font-size:13px;color:#3a3a3a;margin:0 0 8px"><strong>Address:</strong> ${order.customerDetails.address}, ${order.customerDetails.city}, ${order.customerDetails.state} — ${order.customerDetails.pincode}</p>
+          ${order.notes ? `<p style="font-size:13px;color:#3a3a3a;margin:0 0 8px"><strong>Notes:</strong> ${order.notes}</p>` : ""}
+        </div>
+        <div style="background:#fff;border:1px solid #e5ddd3;padding:16px;margin-bottom:12px">
+          <p style="font-size:11px;color:#8c7a6b;margin:0 0 8px;text-transform:uppercase;letter-spacing:0.1em">Items</p>
+          ${order.items.map((i) => `<div style="display:flex;justify-content:space-between;font-size:13px;color:#3a3a3a;padding:6px 0;border-top:1px solid #f0ebe5">${i.name} x${i.quantity}<span>₹${i.price * i.quantity}</span></div>`).join("")}
+        </div>
+        <a href="${waUrl}" style="display:block;text-align:center;background:#25D366;color:#fff;text-decoration:none;padding:12px 24px;font-size:13px;letter-spacing:0.1em;border-radius:4px">Send WhatsApp to Customer</a>
+      </div>`,
+    });
 
     return NextResponse.json({ orderId, success: true });
   } catch (err: any) {

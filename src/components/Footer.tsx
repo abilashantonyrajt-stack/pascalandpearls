@@ -50,6 +50,7 @@ export default function Footer() {
               <li><Link href="/contact" className="text-sm text-ivory/50 hover:text-gold transition-colors">Contact Us</Link></li>
               <li><Link href="/track-order" className="text-sm text-ivory/50 hover:text-gold transition-colors">Track Order</Link></li>
               <li><Link href="/referral" className="text-sm text-ivory/50 hover:text-gold transition-colors">Refer a Friend</Link></li>
+              <li><Link href="/gift-cards" className="text-sm text-ivory/50 hover:text-gold transition-colors">Gift Cards</Link></li>
               <li><Link href="/privacy" className="text-sm text-ivory/50 hover:text-gold transition-colors">Privacy Policy</Link></li>
               <li><Link href="/terms" className="text-sm text-ivory/50 hover:text-gold transition-colors">Terms of Service</Link></li>
             </ul>

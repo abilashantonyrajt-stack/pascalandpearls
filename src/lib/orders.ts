@@ -39,6 +39,8 @@ export interface Order {
   trackingNumber?: string;
   notes?: string;
   discountPercent?: number;
+  loyaltyPointsUsed?: number;
+  loyaltyDiscount?: number;
   subtotal?: number;
   shipping?: number;
   createdAt: Timestamp;

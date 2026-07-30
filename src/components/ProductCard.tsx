@@ -5,13 +5,14 @@ import Image from "next/image";
 import { useState } from "react";
 import { ShoppingBag } from "lucide-react";
 import { useCart } from "@/context/CartContext";
-import { formatPrice } from "@/lib/utils";
+import { useCurrency } from "@/context/CurrencyContext";
 import type { Product } from "@/lib/products";
 
 const FALLBACK_IMG = "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=600";
 
 export default function ProductCard({ product }: { product: Product }) {
   const { addItem } = useCart();
+  const { format } = useCurrency();
   const [imgError, setImgError] = useState(false);
 
   const outOfStock = product.stock <= 0;
@@ -37,6 +38,9 @@ export default function ProductCard({ product }: { product: Product }) {
           {lowStock && (
             <span className="absolute top-3 left-3 text-[10px] tracking-widest uppercase bg-amber-100 text-amber-800 px-2 py-1">Only {product.stock} left</span>
           )}
+          {product.preOrder && (
+            <span className="absolute top-3 right-3 text-[10px] tracking-widest uppercase bg-orange-400 text-white px-2 py-1">Pre-Order</span>
+          )}
         </div>
       </Link>
       <div className="px-1">
@@ -50,7 +54,7 @@ export default function ProductCard({ product }: { product: Product }) {
         </Link>
         <div className="flex items-center justify-between mt-2">
           <span className="text-sm text-charcoal font-medium">
-            {formatPrice(product.price)}
+            {format(product.price)}
           </span>
           <button
             onClick={() => {

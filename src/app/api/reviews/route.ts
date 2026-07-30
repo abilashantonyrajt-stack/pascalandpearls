@@ -14,7 +14,8 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const { productId, name, rating, comment } = await req.json();
+    const body = await req.json();
+    const { productId, name, rating, comment } = body;
     if (!productId || !name || !rating) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
@@ -23,6 +24,7 @@ export async function POST(req: Request) {
       name,
       rating: Number(rating),
       comment: comment || "",
+      image: body.image || "",
       createdAt: Timestamp.now(),
     });
     return NextResponse.json({ id: ref.id, success: true });

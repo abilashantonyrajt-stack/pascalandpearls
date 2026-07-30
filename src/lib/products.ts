@@ -20,6 +20,8 @@ export interface Product {
   createdAt: number;
   material?: string;
   variants?: ProductVariant[];
+  preOrder?: boolean;
+  preOrderDate?: string;
 }
 
 const PRODUCTS_COLLECTION = "products";

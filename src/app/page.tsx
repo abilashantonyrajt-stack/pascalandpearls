@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import HeroSection from "@/components/HeroSection";
 import FeaturedCollections from "@/components/FeaturedCollections";
 import AboutCraft from "@/components/AboutCraft";
+import InstagramFeed from "@/components/InstagramFeed";
 
 export const metadata: Metadata = {
   title: "Pascal & Pearls | Artisan Handcrafted Jewelry",
@@ -20,6 +21,7 @@ export default function Home() {
       <HeroSection />
       <FeaturedCollections />
       <AboutCraft />
+      <InstagramFeed />
     </>
   );
 }
