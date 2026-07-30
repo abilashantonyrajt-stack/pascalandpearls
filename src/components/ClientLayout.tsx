@@ -5,6 +5,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import CartDrawer from "@/components/CartDrawer";
 import WhatsAppButton from "@/components/WhatsAppButton";
+import SocialProofPopup from "@/components/SocialProofPopup";
 import { useSiteContent } from "@/context/SiteContentContext";
 
 export default function ClientLayout({ children }: { children: ReactNode }) {
@@ -46,6 +47,7 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
       <Footer />
       <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
       <WhatsAppButton />
+      <SocialProofPopup />
     </>
   );
 }

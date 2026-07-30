@@ -4,13 +4,15 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { ImageOff, ChevronLeft, ShoppingBag, Heart, Shield, Truck, RefreshCw, X, LoaderCircle, Share2 } from "lucide-react";
+import { ImageOff, ChevronLeft, ShoppingBag, Heart, Shield, Truck, RefreshCw, X, LoaderCircle, Share2, Ruler } from "lucide-react";
 import { getProductsByCategory } from "@/lib/products";
 import type { Product } from "@/lib/products";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
 import { formatPrice } from "@/lib/utils";
 import ProductCard from "@/components/ProductCard";
+import SizeGuide from "@/components/SizeGuide";
+import BackInStockButton from "@/components/BackInStockButton";
 import { db } from "@/lib/firebase";
 import { doc, onSnapshot } from "firebase/firestore";
 
@@ -23,6 +25,7 @@ export default function ProductDetailPage() {
   const [selectedVariant, setSelectedVariant] = useState<string | null>(null);
   const [imgErrors, setImgErrors] = useState<Record<number, boolean>>({});
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
   const [related, setRelated] = useState<Product[]>([]);
   const { addItem } = useCart();
   const { isWishlisted, toggle: toggleWishlist } = useWishlist();
@@ -216,6 +219,12 @@ export default function ProductDetailPage() {
               </div>
             )}
 
+            <button onClick={() => setSizeGuideOpen(true)} className="flex items-center gap-2 text-xs text-mink hover:text-charcoal transition-colors mb-6">
+              <Ruler size={14} /> Size Guide
+            </button>
+
+            {product.stock === 0 && <BackInStockButton productId={product.id} />}
+
             <button
               onClick={() => {
                 addItem({
@@ -264,6 +273,8 @@ export default function ProductDetailPage() {
 
         <ReviewSection productId={product.id} />
       </div>
+
+      <SizeGuide open={sizeGuideOpen} onClose={() => setSizeGuideOpen(false)} />
 
       {lightboxOpen && (
         <div className="fixed inset-0 z-[60] bg-black/90 flex items-center justify-center p-4" onClick={() => setLightboxOpen(false)}>

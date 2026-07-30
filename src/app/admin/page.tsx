@@ -6,7 +6,9 @@ import { collection, getDocs, query, orderBy, Timestamp, addDoc, deleteDoc, doc,
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import type { Product } from "@/lib/products";
 import type { Order } from "@/lib/orders";
-import { LoaderCircle, LayoutDashboard, ShoppingBag, Package, Users, Eye, Ticket, Check, Plus, Edit2, Trash2, Search, X, ChevronLeft, ChevronRight, FileText, MessageSquare, CheckCircle } from "lucide-react";
+import { LoaderCircle, LayoutDashboard, ShoppingBag, Package, Users, Eye, Ticket, Check, Plus, Edit2, Trash2, Search, X, ChevronLeft, ChevronRight, FileText, MessageSquare, CheckCircle, BookOpen } from "lucide-react";
+import BlogTab from "@/components/admin/BlogTab";
+import BulkImportTab from "@/components/admin/BulkImportTab";
 import { formatPrice } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 import Link from "next/link";
@@ -24,7 +26,7 @@ interface UserDoc {
   createdAt: Timestamp;
 }
 
-type Tab = "overview" | "orders" | "products" | "coupons" | "reviews" | "content" | "users";
+type Tab = "overview" | "orders" | "products" | "coupons" | "reviews" | "content" | "blog" | "bulk" | "users";
 
 const TABS: { key: Tab; label: string; icon: any }[] = [
   { key: "overview", label: "Overview", icon: LayoutDashboard },
@@ -33,6 +35,8 @@ const TABS: { key: Tab; label: string; icon: any }[] = [
   { key: "coupons", label: "Coupons", icon: Ticket },
   { key: "reviews", label: "Reviews", icon: MessageSquare },
   { key: "content", label: "Content", icon: FileText },
+  { key: "blog", label: "Blog", icon: BookOpen },
+  { key: "bulk", label: "Bulk Import", icon: FileText },
   { key: "users", label: "Users", icon: Users },
 ];
 
@@ -148,6 +152,10 @@ function AdminDashboard() {
           <ReviewsTab products={products} />
         ) : tab === "content" ? (
           <ContentTab siteContent={siteContent} onContentChange={() => {}} />
+        ) : tab === "blog" ? (
+          <BlogTab />
+        ) : tab === "bulk" ? (
+          <BulkImportTab />
         ) : (
           <UsersTab users={users} />
         )}
@@ -433,11 +441,11 @@ function ProductsTab({ products, onProductsChange }: { products: Product[]; onPr
   }, []);
 
   const [form, setForm] = useState({
-    name: "", price: "", description: "", category: "", stock: "10", featured: false, material: "", images: "",
+    name: "", price: "", costPrice: "", description: "", category: "", stock: "10", featured: false, material: "", images: "",
   });
 
   function resetForm() {
-    setForm({ name: "", price: "", description: "", category: "", stock: "10", featured: false, material: "", images: "" });
+    setForm({ name: "", price: "", costPrice: "", description: "", category: "", stock: "10", featured: false, material: "", images: "" });
     setEditing(null);
     setShowForm(false);
   }
@@ -446,6 +454,7 @@ function ProductsTab({ products, onProductsChange }: { products: Product[]; onPr
     setForm({
       name: p.name,
       price: String(p.price),
+      costPrice: p.costPrice != null ? String(p.costPrice) : "",
       description: p.description || "",
       category: p.category,
       stock: String(p.stock),
@@ -483,6 +492,7 @@ function ProductsTab({ products, onProductsChange }: { products: Product[]; onPr
       ...(editing ? { id: editing.id } : {}),
       name: form.name,
       price: Number(form.price),
+      costPrice: form.costPrice ? Number(form.costPrice) : undefined,
       description: form.description,
       category: form.category,
       stock: Number(form.stock),
@@ -579,6 +589,10 @@ function ProductsTab({ products, onProductsChange }: { products: Product[]; onPr
               <input type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} min="0" className="w-full glass-input px-4 py-2 text-sm text-charcoal focus:outline-none" required />
             </div>
             <div>
+              <label className="text-xs tracking-wider text-mink mb-1 block">Cost Price</label>
+              <input type="number" value={form.costPrice} onChange={(e) => setForm({ ...form, costPrice: e.target.value })} min="0" className="w-full glass-input px-4 py-2 text-sm text-charcoal focus:outline-none" />
+            </div>
+            <div>
               <label className="text-xs tracking-wider text-mink mb-1 block">Category *</label>
               <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="w-full glass-input px-4 py-2 text-sm text-charcoal focus:outline-none" required>
                 <option value="">Select</option>
@@ -637,7 +651,7 @@ function ProductsTab({ products, onProductsChange }: { products: Product[]; onPr
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead><tr className="text-xs tracking-widest uppercase text-mink border-b border-stone"><th className="text-left py-3 px-2">Product ID</th><th className="text-left py-3 px-2">Image</th><th className="text-left py-3 px-2">Name</th><th className="text-left py-3 px-2">Category</th><th className="text-left py-3 px-2">Price</th><th className="text-left py-3 px-2">Stock</th><th className="text-left py-3 px-2">Featured</th><th className="text-left py-3 px-2">Actions</th></tr></thead>
+            <thead><tr className="text-xs tracking-widest uppercase text-mink border-b border-stone"><th className="text-left py-3 px-2">Product ID</th><th className="text-left py-3 px-2">Image</th><th className="text-left py-3 px-2">Name</th><th className="text-left py-3 px-2">Category</th><th className="text-left py-3 px-2">Price</th><th className="text-left py-3 px-2">Margin</th><th className="text-left py-3 px-2">Stock</th><th className="text-left py-3 px-2">Featured</th><th className="text-left py-3 px-2">Actions</th></tr></thead>
             <tbody>
               {filtered.map((p) => (
                 <tr key={p.id} className="border-b border-stone/50 hover:bg-white/20 transition-colors">
@@ -646,6 +660,7 @@ function ProductsTab({ products, onProductsChange }: { products: Product[]; onPr
                   <td className="py-3 px-2 text-charcoal font-medium">{p.name}</td>
                   <td className="py-3 px-2 text-xs text-mink">{p.category}</td>
                   <td className="py-3 px-2 text-charcoal">₹{p.price}</td>
+                  <td className="py-3 px-2 text-xs">{p.costPrice ? <span className={p.price > p.costPrice ? "text-green-700" : "text-red-600"}>{((p.price - p.costPrice) / p.price * 100).toFixed(0)}%</span> : "-"}</td>
                   <td className="py-3 px-2"><span className={`px-2 py-0.5 text-xs ${p.stock > 0 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}>{p.stock}</span></td>
                   <td className="py-3 px-2">{p.featured ? <span className="text-[10px] bg-charcoal/10 text-charcoal px-2 py-0.5">Yes</span> : "-"}</td>
                   <td className="py-3 px-2">

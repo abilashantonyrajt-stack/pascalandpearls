@@ -1,24 +1,30 @@
 "use client";
 
 import Link from "next/link";
-import { ShoppingBag, Menu, X, User, Package, Heart } from "lucide-react";
+import { ShoppingBag, Menu, X, User, Package, Heart, Globe, Moon, Sun } from "lucide-react";
 import { useState } from "react";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import { useWishlist } from "@/context/WishlistContext";
+import { useI18n } from "@/i18n/LanguageProvider";
+import { useTheme } from "@/context/ThemeContext";
 
 const navLinks = [
-  { href: "/", label: "Home" },
-  { href: "/shop", label: "Shop" },
-  { href: "/collections", label: "Collections" },
-  { href: "/about", label: "About" },
+  { href: "/", labelKey: "nav.home" },
+  { href: "/shop", labelKey: "nav.shop" },
+  { href: "/collections", labelKey: "nav.collections" },
+  { href: "/blog", labelKey: "nav.blog" },
+  { href: "/about", labelKey: "nav.about" },
 ];
 
 export default function Navbar({ onCartOpen }: { onCartOpen?: () => void }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [langOpen, setLangOpen] = useState(false);
   const { itemCount } = useCart();
   const { isLoggedIn, user, logout } = useAuth();
   const { count: wishlistCount } = useWishlist();
+  const { t, lang, setLang, available } = useI18n();
+  const { dark, toggle: toggleDark } = useTheme();
 
   return (
     <nav className="sticky top-0 z-50 glass-header">
@@ -37,25 +43,52 @@ export default function Navbar({ onCartOpen }: { onCartOpen?: () => void }) {
                 href={link.href}
                 className="text-sm tracking-widest uppercase text-charcoal/70 hover:text-gold transition-colors"
               >
-                {link.label}
+                {t(link.labelKey)}
               </Link>
             ))}
           </div>
 
           <div className="flex items-center gap-2">
+            <div className="hidden md:flex items-center gap-3 text-xs text-mink mr-2">
+              <Link href="/track-order" className="text-mink/60 hover:text-charcoal transition-colors">{t("nav.track")}</Link>
+            </div>
             {isLoggedIn ? (
               <div className="hidden md:flex items-center gap-3 text-xs text-mink mr-2">
                 <span>{user?.name}</span>
-                <Link href="/wishlist" className="flex items-center gap-1 text-mink/60 hover:text-charcoal transition-colors relative"><Heart size={12} /> Wishlist{wishlistCount > 0 && <span className="text-[10px] bg-gold text-white w-3.5 h-3.5 rounded-full flex items-center justify-center absolute -top-1.5 -right-3.5">{wishlistCount}</span>}</Link>
-                <Link href="/my-orders" className="flex items-center gap-1 text-mink/60 hover:text-charcoal transition-colors"><Package size={12} /> Orders</Link>
-                <button onClick={logout} className="text-mink/60 hover:text-red-500">Logout</button>
+                <Link href="/wishlist" className="flex items-center gap-1 text-mink/60 hover:text-charcoal transition-colors relative"><Heart size={12} /> {t("nav.wishlist")}{wishlistCount > 0 && <span className="text-[10px] bg-gold text-white w-3.5 h-3.5 rounded-full flex items-center justify-center absolute -top-1.5 -right-3.5">{wishlistCount}</span>}</Link>
+                <Link href="/my-orders" className="flex items-center gap-1 text-mink/60 hover:text-charcoal transition-colors"><Package size={12} /> {t("nav.orders")}</Link>
+                <button onClick={logout} className="text-mink/60 hover:text-red-500">{t("nav.signOut")}</button>
               </div>
             ) : (
               <Link href="/auth" className="hidden md:flex items-center gap-2 text-xs tracking-widest uppercase text-mink hover:text-charcoal transition-colors mr-2">
-                <User size={14} /> Sign In
+                <User size={14} /> {t("nav.signIn")}
               </Link>
             )}
-            <Link href="/wishlist" className="relative p-2 text-charcoal/70 hover:text-gold transition-colors" aria-label="Wishlist">
+
+            <div className="relative">
+              <button onClick={() => setLangOpen(!langOpen)} className="p-2 text-charcoal/70 hover:text-gold transition-colors" title={t("nav.language")}>
+                <Globe size={18} />
+              </button>
+              {langOpen && (
+                <div className="absolute right-0 top-full mt-1 glass-strong rounded min-w-[140px] shadow-lg z-50">
+                  {available.map((l) => (
+                    <button
+                      key={l.code}
+                      onClick={() => { setLang(l.code); setLangOpen(false); }}
+                      className={`block w-full text-left px-4 py-2 text-xs tracking-wider transition-colors ${lang === l.code ? "bg-charcoal text-ivory" : "text-charcoal hover:bg-stone/30"}`}
+                    >
+                      {l.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <button onClick={toggleDark} className="p-2 text-charcoal/70 hover:text-gold transition-colors" title={t("nav.darkMode")}>
+              {dark ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
+
+            <Link href="/wishlist" className="relative p-2 text-charcoal/70 hover:text-gold transition-colors" aria-label={t("nav.wishlist")}>
               <Heart size={20} />
               {wishlistCount > 0 && (
                 <span className="absolute top-0 right-0 bg-gold text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-medium">
@@ -63,10 +96,11 @@ export default function Navbar({ onCartOpen }: { onCartOpen?: () => void }) {
                 </span>
               )}
             </Link>
+
             <button
               onClick={onCartOpen}
               className="relative p-2 text-charcoal/70 hover:text-gold transition-colors"
-              aria-label="Open cart"
+              aria-label={t("nav.cart")}
             >
               <ShoppingBag size={20} />
               {itemCount > 0 && (
@@ -96,26 +130,46 @@ export default function Navbar({ onCartOpen }: { onCartOpen?: () => void }) {
                 onClick={() => setMenuOpen(false)}
                 className="block text-sm tracking-widest uppercase text-charcoal/70 hover:text-gold transition-colors py-2"
               >
-                {link.label}
+                {t(link.labelKey)}
               </Link>
             ))}
+            <Link href="/track-order" onClick={() => setMenuOpen(false)} className="block text-sm tracking-widest uppercase text-charcoal/70 hover:text-gold transition-colors py-2">
+              {t("nav.track")}
+            </Link>
             {isLoggedIn ? (
               <>
                 <Link href="/wishlist" onClick={() => setMenuOpen(false)} className="block text-sm tracking-widest uppercase text-charcoal/70 hover:text-gold transition-colors py-2">
-                  Wishlist {wishlistCount > 0 && `(${wishlistCount})`}
+                  {t("nav.wishlist")} {wishlistCount > 0 && `(${wishlistCount})`}
                 </Link>
                 <Link href="/my-orders" onClick={() => setMenuOpen(false)} className="block text-sm tracking-widest uppercase text-charcoal/70 hover:text-gold transition-colors py-2">
-                  My Orders
+                  {t("nav.orders")}
                 </Link>
                 <button onClick={() => { logout(); setMenuOpen(false); }} className="block text-sm tracking-widest uppercase text-red-400 hover:text-red-500 transition-colors py-2 w-full text-left">
-                  Sign Out ({user?.name})
+                  {t("nav.signOut")} ({user?.name})
                 </button>
               </>
             ) : (
               <Link href="/auth" onClick={() => setMenuOpen(false)} className="block text-sm tracking-widest uppercase text-charcoal/70 hover:text-gold transition-colors py-2">
-                Sign In
+                {t("nav.signIn")}
               </Link>
             )}
+            <div className="pt-2 border-t border-stone">
+              <p className="text-xs tracking-widest uppercase text-mink mb-2">{t("nav.language")}</p>
+              <div className="flex flex-wrap gap-1">
+                {available.map((l) => (
+                  <button
+                    key={l.code}
+                    onClick={() => { setLang(l.code); setMenuOpen(false); }}
+                    className={`text-xs px-3 py-1 transition-colors ${lang === l.code ? "bg-charcoal text-ivory" : "text-charcoal bg-stone/30"}`}
+                  >
+                    {l.name}
+                  </button>
+                ))}
+              </div>
+              <button onClick={() => { toggleDark(); setMenuOpen(false); }} className="flex items-center gap-2 text-xs tracking-widest uppercase text-charcoal/70 hover:text-gold transition-colors py-2 mt-2">
+                {dark ? <Sun size={14} /> : <Moon size={14} />} {t("nav.darkMode")}
+              </button>
+            </div>
           </div>
         </div>
       )}

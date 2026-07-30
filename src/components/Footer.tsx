@@ -36,19 +36,20 @@ export default function Footer() {
             </ul>
           </div>
           <div>
-            <h4 className="text-xs tracking-widest uppercase mb-4 text-ivory/80">About</h4>
+            <h4 className="text-xs tracking-widest uppercase mb-4 text-ivory/80">Links</h4>
             <ul className="space-y-2">
-              {["Our Story", "Craftsmanship", "Sustainability", "Care Guide"].map((item) => (
-                <li key={item}>
-                  <Link href="/about" className="text-sm text-ivory/50 hover:text-gold transition-colors">{item}</Link>
-                </li>
-              ))}
+              <li><Link href="/about" className="text-sm text-ivory/50 hover:text-gold transition-colors">About</Link></li>
+              <li><Link href="/blog" className="text-sm text-ivory/50 hover:text-gold transition-colors">Blog</Link></li>
+              <li><Link href="/collections" className="text-sm text-ivory/50 hover:text-gold transition-colors">Collections</Link></li>
+              <li><Link href="/wishlist" className="text-sm text-ivory/50 hover:text-gold transition-colors">Wishlist</Link></li>
             </ul>
           </div>
           <div>
             <h4 className="text-xs tracking-widest uppercase mb-4 text-ivory/80">Support</h4>
             <ul className="space-y-2">
               <li><Link href="/contact" className="text-sm text-ivory/50 hover:text-gold transition-colors">Contact Us</Link></li>
+              <li><Link href="/track-order" className="text-sm text-ivory/50 hover:text-gold transition-colors">Track Order</Link></li>
+              <li><Link href="/referral" className="text-sm text-ivory/50 hover:text-gold transition-colors">Refer a Friend</Link></li>
               <li><Link href="/privacy" className="text-sm text-ivory/50 hover:text-gold transition-colors">Privacy Policy</Link></li>
               <li><Link href="/terms" className="text-sm text-ivory/50 hover:text-gold transition-colors">Terms of Service</Link></li>
             </ul>
@@ -61,6 +62,8 @@ export default function Footer() {
         <div className="border-t border-ivory/10 mt-12 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-ivory/40 tracking-wider">
           <p>{footer?.active && footer?.copyright ? footer.copyright : `\u00A9 ${new Date().getFullYear()} Pascal & Pearls. All rights reserved.`}</p>
           <div className="flex gap-4">
+            <Link href="/blog" className="hover:text-gold transition-colors">Blog</Link>
+            <Link href="/referral" className="hover:text-gold transition-colors">Referral</Link>
             <Link href="/privacy" className="hover:text-gold transition-colors">Privacy</Link>
             <Link href="/terms" className="hover:text-gold transition-colors">Terms</Link>
             <Link href="/contact" className="hover:text-gold transition-colors">Contact</Link>

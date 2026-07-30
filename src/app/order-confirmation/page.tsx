@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { CheckCircle, Package, ArrowRight } from "lucide-react";
 import OrderTimeline from "@/components/OrderTimeline";
+import InvoicePDF from "@/components/InvoicePDF";
 import { getOrder } from "@/lib/orders";
 import type { Order } from "@/lib/orders";
 import { formatPrice } from "@/lib/utils";
@@ -138,6 +139,7 @@ function OrderContent() {
         <button onClick={() => window.print()} className="text-xs tracking-widest uppercase border border-charcoal text-charcoal px-8 py-4 hover:bg-charcoal hover:text-ivory transition-colors">
           Print Invoice
         </button>
+        <InvoicePDF order={order} />
       </div>
 
       <style jsx>{`

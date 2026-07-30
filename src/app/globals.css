@@ -73,3 +73,81 @@ body {
   background: rgba(255, 255, 255, 0.6);
   border-color: var(--color-gold);
 }
+
+.dark body {
+  background: #1a1a1a;
+  background-image: radial-gradient(ellipse at 20% 50%, rgba(201, 169, 110, 0.08) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 20%, rgba(100, 100, 100, 0.05) 0%, transparent 50%);
+  color: #e8e0d8;
+}
+
+.dark .glass,
+.dark .glass-strong,
+.dark .glass-card,
+.dark .glass-header,
+.dark .glass-drawer {
+  background: rgba(45, 45, 45, 0.8);
+  border-color: rgba(100, 100, 100, 0.4);
+}
+
+.dark .glass-input {
+  background: rgba(60, 60, 60, 0.6);
+  border-color: rgba(100, 100, 100, 0.4);
+  color: #e8e0d8;
+}
+
+.dark .glass-input:focus {
+  background: rgba(60, 60, 60, 0.8);
+}
+
+.dark [class*="bg-ivory"],
+.dark [style*="background: var(--color-ivory)"] {
+  background: #1a1a1a;
+}
+
+.dark .text-charcoal {
+  color: #e8e0d8;
+}
+
+.dark .text-mink {
+  color: #b8a89a;
+}
+
+.dark .border-stone {
+  border-color: rgba(100, 100, 100, 0.3);
+}
+
+.dark [class*="md:hidden"]:not(body) > div {
+  background: #2d2d2d;
+}
+
+.dark .bg-charcoal {
+  background: #c9a96e;
+}
+
+.dark .bg-charcoal-deep {
+  background: #b8934e;
+}
+
+.dark .text-ivory {
+  color: #1a1a1a;
+}
+
+.dark .hover\:bg-charcoal-deep:hover {
+  background: #b8934e;
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.4s ease-out;
+}

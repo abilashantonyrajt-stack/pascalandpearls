@@ -5,6 +5,8 @@ import { CartProvider } from "@/context/CartContext";
 import { AuthProvider } from "@/context/AuthContext";
 import { WishlistProvider } from "@/context/WishlistContext";
 import { SiteContentProvider } from "@/context/SiteContentContext";
+import { ThemeProvider } from "@/context/ThemeContext";
+import { LanguageProvider } from "@/i18n/LanguageProvider";
 import ClientLayout from "@/components/ClientLayout";
 import CookieConsent from "@/components/CookieConsent";
 
@@ -62,19 +64,24 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <AuthProvider>
-          <CartProvider>
-            <WishlistProvider>
-              <SiteContentProvider>
-                <ClientLayout>{children}</ClientLayout>
-                <CookieConsent />
-              </SiteContentProvider>
-            </WishlistProvider>
-          </CartProvider>
-        </AuthProvider>
+        <ThemeProvider>
+          <LanguageProvider>
+            <AuthProvider>
+              <CartProvider>
+                <WishlistProvider>
+                  <SiteContentProvider>
+                    <ClientLayout>{children}</ClientLayout>
+                    <CookieConsent />
+                  </SiteContentProvider>
+                </WishlistProvider>
+              </CartProvider>
+            </AuthProvider>
+          </LanguageProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
